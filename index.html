@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -35,20 +34,14 @@
 <h1>💻 RAM Slot Detection</h1>
 <p>Upload a laptop image or use your camera to detect RAM slots.</p>
 
-<!-- Upload from file -->
 <input type="file" id="imageUpload" accept="image/*" class="button" />
-
-<!-- Start camera manually -->
 <br><button id="startCameraBtn" class="button">🎥 Start Camera</button><br>
 
-<!-- Camera feed -->
 <video id="camera" width="320" height="240" autoplay playsinline style="display:none;"></video><br>
 <button id="captureBtn" class="button" style="display:none;">📸 Capture from Camera</button>
 
-<!-- Canvas for captured frame -->
 <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
 
-<!-- Result -->
 <h3> Detection Result:</h3>
 <img id="result" src="" alt="Result will appear here" style="max-width:90%; border: 2px solid #888;" />
 
@@ -58,7 +51,7 @@
   const captureBtn = document.getElementById('captureBtn');
   const canvas = document.getElementById('canvas');
   const resultImg = document.getElementById('result');
-  const API_URL = "https://onnx-api-690z.onrender.com/predict/";
+  const API_URL = "https://onnx-api-backend.onrender.com/predict/";
 
   startBtn.addEventListener('click', async () => {
     try {
@@ -67,7 +60,7 @@
       camera.style.display = "block";
       captureBtn.style.display = "inline-block";
     } catch (err) {
-      alert(" Camera permission denied or not available.");
+      alert("Camera permission denied or not available.");
     }
   });
 
@@ -80,7 +73,6 @@
   captureBtn.addEventListener('click', async () => {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(camera, 0, 0, canvas.width, canvas.height);
-
     canvas.toBlob(async function (blob) {
       await sendToAPI(blob);
     }, "image/jpeg");
@@ -97,7 +89,6 @@
         body: formData
       });
     } catch (err) {
-      // wait and retry once
       console.warn("Waiting for backend to wake up...");
       await new Promise(resolve => setTimeout(resolve, 5000));
       try {
@@ -106,19 +97,19 @@
           body: formData
         });
       } catch (retryErr) {
-        alert(" API still not responding after retry.");
+        alert("API still not responding after retry.");
         return;
       }
     }
 
     if (!res.ok) {
-      alert(" Server returned status: " + res.status);
+      alert("Server returned status: " + res.status);
       return;
     }
 
     const blob = await res.blob();
     if (!blob.type.startsWith("image/")) {
-      alert(" API did not return a valid image.");
+      alert("API did not return a valid image.");
       return;
     }
 
@@ -128,3 +119,4 @@
 
 </body>
 </html>
+
