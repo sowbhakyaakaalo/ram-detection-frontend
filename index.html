@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -32,7 +33,7 @@
 <body>
 
 <h1>💻 RAM Slot Detection</h1>
-<p>Upload a laptop image or use your camera to detect RAM slots.</p>
+<p>Upload a laptop image or use your back camera to detect RAM slots.</p>
 
 <input type="file" id="imageUpload" accept="image/*" class="button" />
 <br><button id="startCameraBtn" class="button">🎥 Start Camera</button><br>
@@ -51,17 +52,18 @@
   const captureBtn = document.getElementById('captureBtn');
   const canvas = document.getElementById('canvas');
   const resultImg = document.getElementById('result');
-  const API_URL = "https://onnx-api-backend-1.onrender.com/predict/";
-
+  const API_URL = "https://onnx-api-backend-2.onrender.com/predict/";
 
   startBtn.addEventListener('click', async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: "environment" } }
+      });
       camera.srcObject = stream;
       camera.style.display = "block";
       captureBtn.style.display = "inline-block";
     } catch (err) {
-      alert("Camera permission denied or not available.");
+      alert("Back camera not accessible. Try allowing camera permissions.");
     }
   });
 
