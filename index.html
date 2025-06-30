@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -70,14 +71,12 @@
     }
   });
 
-  // Upload file
   document.getElementById('imageUpload').addEventListener('change', async function () {
     const file = this.files[0];
     if (!file) return;
     await sendToAPI(file);
   });
 
-  // Capture from camera
   captureBtn.addEventListener('click', async () => {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(camera, 0, 0, canvas.width, canvas.height);
@@ -91,28 +90,39 @@
     const formData = new FormData();
     formData.append("file", fileBlob, "input.jpg");
 
+    let res;
     try {
-      const res = await fetch(API_URL, {
+      res = await fetch(API_URL, {
         method: "POST",
         body: formData
       });
-
-      if (!res.ok) {
-        throw new Error("Server error: " + res.status);
-      }
-
-      const blob = await res.blob();
-
-      if (!blob.type.startsWith("image/")) {
-        alert("  API did not return an image.");
+    } catch (err) {
+      // wait and retry once
+      console.warn("Waiting for backend to wake up...");
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      try {
+        res = await fetch(API_URL, {
+          method: "POST",
+          body: formData
+        });
+      } catch (retryErr) {
+        alert(" API still not responding after retry.");
         return;
       }
-
-      resultImg.src = URL.createObjectURL(blob);
-    } catch (err) {
-      alert(" Error: " + err.message + "\nPlease check if the API is online.");
-      console.error(err);
     }
+
+    if (!res.ok) {
+      alert(" Server returned status: " + res.status);
+      return;
+    }
+
+    const blob = await res.blob();
+    if (!blob.type.startsWith("image/")) {
+      alert(" API did not return a valid image.");
+      return;
+    }
+
+    resultImg.src = URL.createObjectURL(blob);
   }
 </script>
 
