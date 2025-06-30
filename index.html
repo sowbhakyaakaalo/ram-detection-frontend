@@ -4,18 +4,28 @@
   <title>RAM Slot Detection</title>
   <style>
     body {
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       text-align: center;
       padding: 20px;
+      background-color: #f9f9f9;
     }
-    #preview {
-      margin-top: 10px;
-      border: 1px solid #ccc;
-      max-width: 100%;
+    video, img {
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      margin: 10px 0;
     }
     .button {
       margin: 10px;
       padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: none;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+    .button:hover {
+      background-color: #45a049;
     }
   </style>
 </head>
@@ -24,35 +34,34 @@
 <h1>💻 RAM Slot Detection</h1>
 <p>Upload a laptop image or use your camera to detect RAM slots.</p>
 
-<!-- Upload from file -->
+<!-- Upload -->
 <input type="file" id="imageUpload" accept="image/*" class="button" />
-<br><br>
 
-<!-- Camera capture -->
+<!-- Camera -->
 <video id="camera" width="320" height="240" autoplay playsinline></video><br>
-<button id="captureBtn" class="button">📸 Capture from Camera</button><br>
+<button id="captureBtn" class="button">📸 Capture from Camera</button>
 
-<!-- Canvas to hold frame -->
+<!-- Hidden canvas for capture -->
 <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
 
-<!-- Show result -->
+<!-- Detection result -->
 <h3>📌 Detection Result:</h3>
-<img id="result" src="" alt="Result will appear here" style="max-width:100%;" />
+<img id="result" src="" alt="Result will appear here" style="max-width:90%; border: 2px solid #888;" />
 
 <script>
   const camera = document.getElementById('camera');
   const canvas = document.getElementById('canvas');
   const resultImg = document.getElementById('result');
 
-  // 🔹 Start camera stream
+  // Start camera
   navigator.mediaDevices.getUserMedia({ video: true })
     .then(stream => {
       camera.srcObject = stream;
     }).catch(err => {
-      alert("Camera not accessible. Please allow permission or use a different browser.");
+      alert("⚠️ Please allow camera access or try a different browser.");
     });
 
-  // 🔹 Upload from file
+  // Upload from file
   document.getElementById('imageUpload').addEventListener('change', async function () {
     const file = this.files[0];
     if (!file) return;
@@ -60,30 +69,59 @@
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("https://onnx-api-690z.onrender.com/predict/", {
-      method: "POST",
-      body: formData
-    });
-
-    const blob = await res.blob();
-    resultImg.src = URL.createObjectURL(blob);
-  });
-
-  // 🔹 Capture from camera
-  document.getElementById('captureBtn').addEventListener('click', async () => {
-    const context = canvas.getContext('2d');
-    context.drawImage(camera, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob(async function (blob) {
-      const formData = new FormData();
-      formData.append("file", blob, "capture.jpg");
-
+    try {
       const res = await fetch("https://onnx-api-690z.onrender.com/predict/", {
         method: "POST",
         body: formData
       });
 
-      const responseBlob = await res.blob();
-      resultImg.src = URL.createObjectURL(responseBlob);
+      if (!res.ok) {
+        throw new Error(`❌ Server returned status: ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      if (!blob.type.startsWith("image/")) {
+        alert("⚠️ The server did not return a valid image.");
+        return;
+      }
+
+      resultImg.src = URL.createObjectURL(blob);
+    } catch (err) {
+      alert("❌ Error: " + err.message);
+      console.error(err);
+    }
+  });
+
+  // Capture from camera
+  document.getElementById('captureBtn').addEventListener('click', async () => {
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(camera, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(async function (blob) {
+      const formData = new FormData();
+      formData.append("file", blob, "capture.jpg");
+
+      try {
+        const res = await fetch("https://onnx-api-690z.onrender.com/predict/", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!res.ok) {
+          throw new Error(`❌ Server returned status: ${res.status}`);
+        }
+
+        const responseBlob = await res.blob();
+        if (!responseBlob.type.startsWith("image/")) {
+          alert("⚠️ The server did not return a valid image.");
+          return;
+        }
+
+        resultImg.src = URL.createObjectURL(responseBlob);
+      } catch (err) {
+        alert("❌ Error: " + err.message);
+        console.error(err);
+      }
     }, "image/jpeg");
   });
 </script>
