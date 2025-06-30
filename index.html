@@ -52,10 +52,10 @@
   const captureBtn = document.getElementById('captureBtn');
   const canvas = document.getElementById('canvas');
   const resultImg = document.getElementById('result');
-  const API_URL = "https://onnx-api-backend-2.onrender.com/predict/";
+  const API_URL = "https://onnx-api-backend-4.onrender.com/predict/";
 
 
-  startBtn.addEventListener('click', async () => {
+startBtn.addEventListener('click', async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { exact: "environment" } }
