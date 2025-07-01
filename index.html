@@ -1,19 +1,16 @@
-
 <!DOCTYPE html>
 <html>
 <head>
   <title>RAM Slot Detection</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
       font-family: Arial, sans-serif;
       text-align: center;
-      padding: 20px;
       background-color: #f9f9f9;
-    }
-    video, img {
-      border: 2px solid #ccc;
-      border-radius: 8px;
-      margin: 10px 0;
     }
     .button {
       margin: 10px;
@@ -28,20 +25,41 @@
     .button:hover {
       background-color: #45a049;
     }
+    video {
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      display: none;
+    }
+    canvas {
+      display: none;
+    }
+    #cameraControls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+    }
   </style>
 </head>
 <body>
 
 <h1>💻 RAM Slot Detection</h1>
-<p>Upload a laptop image or use your back camera to detect RAM slots.</p>
+<p>Upload an image or choose front/back camera to detect RAM slots.</p>
 
-<input type="file" id="imageUpload" accept="image/*" class="button" />
-<br><button id="startCameraBtn" class="button">🎥 Start Camera</button><br>
+<div id="cameraControls">
+  <select id="cameraSelect" class="button">
+    <option value="environment">Back Camera</option>
+    <option value="user">Front Camera</option>
+  </select>
+  <button id="startCameraBtn" class="button">🎥 Start Camera</button>
+  <button id="captureBtn" class="button" style="display:none;">📸 Capture</button>
+</div>
 
-<video id="camera" width="320" height="240" autoplay playsinline style="display:none;"></video><br>
-<button id="captureBtn" class="button" style="display:none;">📸 Capture from Camera</button>
+<input type="file" id="imageUpload" accept="image/*" class="button" /><br>
 
-<canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+<video id="camera" autoplay playsinline></video>
+<canvas id="canvas" width="640" height="480"></canvas>
 
 <h3> Detection Result:</h3>
 <img id="result" src="" alt="Result will appear here" style="max-width:90%; border: 2px solid #888;" />
@@ -52,20 +70,32 @@
   const captureBtn = document.getElementById('captureBtn');
   const canvas = document.getElementById('canvas');
   const resultImg = document.getElementById('result');
+  const cameraSelect = document.getElementById('cameraSelect');
   const API_URL = "https://onnx-api-backend-4.onrender.com/predict/";
 
+  let currentStream = null;
 
-startBtn.addEventListener('click', async () => {
+  async function startCamera(facingMode) {
+    if (currentStream) {
+      currentStream.getTracks().forEach(track => track.stop());
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { exact: "environment" } }
+        video: { facingMode: { exact: facingMode } }
       });
+      currentStream = stream;
       camera.srcObject = stream;
       camera.style.display = "block";
       captureBtn.style.display = "inline-block";
     } catch (err) {
-      alert("Back camera not accessible. Try allowing camera permissions.");
+      alert("Camera not accessible. Try allowing permission or use a supported browser.");
     }
+  }
+
+  startBtn.addEventListener('click', () => {
+    const selected = cameraSelect.value;
+    startCamera(selected);
   });
 
   document.getElementById('imageUpload').addEventListener('change', async function () {
@@ -76,6 +106,8 @@ startBtn.addEventListener('click', async () => {
 
   captureBtn.addEventListener('click', async () => {
     const ctx = canvas.getContext('2d');
+    canvas.width = camera.videoWidth;
+    canvas.height = camera.videoHeight;
     ctx.drawImage(camera, 0, 0, canvas.width, canvas.height);
     canvas.toBlob(async function (blob) {
       await sendToAPI(blob);
@@ -93,7 +125,7 @@ startBtn.addEventListener('click', async () => {
         body: formData
       });
     } catch (err) {
-      console.warn("Waiting for backend to wake up...");
+      console.warn("Backend sleeping. Retrying in 5 seconds...");
       await new Promise(resolve => setTimeout(resolve, 5000));
       try {
         res = await fetch(API_URL, {
@@ -101,7 +133,7 @@ startBtn.addEventListener('click', async () => {
           body: formData
         });
       } catch (retryErr) {
-        alert("API still not responding after retry.");
+        alert("Backend not responding.");
         return;
       }
     }
@@ -123,4 +155,3 @@ startBtn.addEventListener('click', async () => {
 
 </body>
 </html>
-
