@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>💻 RAM Slot Detection</title>
+  <title>RAM Slot Detection</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     html, body {
@@ -9,52 +9,42 @@
       padding: 0;
       font-family: Arial, sans-serif;
       background: #f9f9f9;
-      overflow: hidden;
+      text-align: center;
     }
-
     header {
       background-color: #4CAF50;
       color: white;
-      padding: 16px;
-      font-size: 20px;
-      text-align: center;
-      z-index: 10;
+      padding: 20px;
+      font-size: 24px;
     }
-
+    #cameraCanvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+    video {
+      display: none;
+    }
     #controls {
-      position: absolute;
+      position: fixed;
       top: 10px;
       left: 10px;
-      z-index: 20;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.95);
       padding: 10px;
       border-radius: 8px;
+      z-index: 10;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
     }
-
     .button {
+      display: block;
+      width: 100%;
       margin: 5px 0;
-      padding: 8px 12px;
-      font-size: 14px;
+      padding: 10px;
+      font-size: 16px;
       border: none;
       border-radius: 5px;
       background: #4CAF50;
       color: white;
-      cursor: pointer;
-      width: 100%;
-    }
-
-    video, canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
-    }
-
-    #imageUpload {
-      margin-top: 5px;
-      width: 100%;
     }
   </style>
 </head>
@@ -63,106 +53,97 @@
 <header>
   💻 RAM Slot Detection
 </header>
-
+<p>Upload an image or use front/back camera to detect RAM slots.</p>
+<input type="file" id="imageUpload" accept="image/*" class="button">
 <div id="controls">
   <select id="cameraSelect" class="button">
     <option value="environment">Back Camera</option>
     <option value="user">Front Camera</option>
   </select>
-  <button id="startBtn" class="button">🎥 Start Camera</button>
-  <input type="file" id="imageUpload" accept="image/*" class="button">
+  <button id="startBtn" class="button">Start Camera</button>
 </div>
-
 <video id="video" autoplay playsinline></video>
 <canvas id="cameraCanvas"></canvas>
 
 <script>
-  const API_URL = "https://onnx-api-backend-5.onrender.com/predict/";
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('cameraCanvas');
-  const ctx = canvas.getContext('2d');
-  const startBtn = document.getElementById('startBtn');
-  const cameraSelect = document.getElementById('cameraSelect');
-  let stream = null;
+const API_URL = "https://onnx-api-backend-5.onrender.com/predict/";
+const video = document.getElementById('video');
+const canvas = document.getElementById('cameraCanvas');
+const ctx = canvas.getContext('2d');
+let stream = null;
 
-  async function startCamera(facingMode) {
-    if (stream) stream.getTracks().forEach(track => track.stop());
+async function startCamera(facingMode) {
+  if (stream) stream.getTracks().forEach(track => track.stop());
+  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
+  video.srcObject = stream;
+  video.style.display = 'none';
+  requestAnimationFrame(loop);
+}
 
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { exact: facingMode } }
-      });
-    } catch {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    }
-
-    video.srcObject = stream;
-    requestAnimationFrame(loop);
-  }
-
-  async function loop() {
-    if (video.readyState === 4) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      const frame = canvas.toDataURL("image/jpeg");
-      const blob = await (await fetch(frame)).blob();
-
-      const formData = new FormData();
-      formData.append("file", blob, "frame.jpg");
-
-      try {
-        const res = await fetch(API_URL, { method: "POST", body: formData });
-        const data = await res.json();
-        drawBoxes(data);
-      } catch (err) {
-        console.warn("API error", err);
-      }
-    }
-    setTimeout(() => requestAnimationFrame(loop), 1000); // ~1 FPS to avoid overload
-  }
-
-  function drawBoxes(data) {
-    if (!data || !data.detections) return;
-
-    data.detections.forEach((det) => {
-      const [x1, y1, x2, y2] = det.box;
-      ctx.strokeStyle = "#00FF00";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-      ctx.font = "16px Arial";
-      ctx.fillStyle = "rgba(0,255,0,0.8)";
-      const label = `${det.class} (${(det.score * 100).toFixed(1)}%)`;
-      ctx.fillText(label, x1 + 4, y1 - 6);
-    });
-  }
-
-  startBtn.onclick = () => {
-    const mode = cameraSelect.value;
-    startCamera(mode);
-  };
-
-  document.getElementById('imageUpload').addEventListener('change', async function () {
-    const file = this.files[0];
-    if (!file) return;
+async function loop() {
+  if (video.readyState === 4) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const frame = canvas.toDataURL("image/jpeg");
+    const blob = await (await fetch(frame)).blob();
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", blob, "frame.jpg");
 
-    const res = await fetch(API_URL, { method: "POST", body: formData });
-    const data = await res.json();
-
-    const img = new Image();
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
+    try {
+      const res = await fetch(API_URL, { method: "POST", body: formData });
+      const data = await res.json();
       drawBoxes(data);
-    };
-    img.src = URL.createObjectURL(file);
+    } catch (err) {
+      console.warn("API error", err);
+    }
+  }
+  setTimeout(() => requestAnimationFrame(loop), 1000); // 1 frame/sec
+}
+
+function drawBoxes(data) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!data || !data.detections) return;
+
+  data.detections.forEach(det => {
+    const [x1, y1, x2, y2] = det.box;
+    const label = `${det.class} (${(det.score * 100).toFixed(1)}%)`;
+
+    // Draw bounding box
+    ctx.strokeStyle = "lime";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+    // Label background
+    ctx.font = "bold 16px Arial";
+    const textWidth = ctx.measureText(label).width;
+    ctx.fillStyle = "rgba(0, 255, 0, 0.8)";
+    ctx.fillRect(x1, y1 - 20, textWidth + 10, 20);
+
+    // Label text
+    ctx.fillStyle = "black";
+    ctx.fillText(label, x1 + 5, y1 - 5);
   });
+}
+
+// Camera UI
+startBtn.onclick = () => {
+  const mode = document.getElementById("cameraSelect").value;
+  startCamera(mode);
+};
+
+document.getElementById('imageUpload').addEventListener('change', async function () {
+  const file = this.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(API_URL, { method: "POST", body: formData });
+  const data = await res.json();
+  drawBoxes(data);
+});
 </script>
 
 </body>
 </html>
+
