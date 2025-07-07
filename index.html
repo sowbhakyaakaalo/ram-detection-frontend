@@ -2,152 +2,138 @@
 <html>
 <head>
   <title>RAM Slot Detection</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
-      background: #f9f9f9;
-      width: 100%;
       height: 100%;
-      overflow: hidden;
+      margin: 0;
+      background: #f8f9fa;
     }
-    header {
+    .header {
       background-color: #4CAF50;
       color: white;
-      padding: 20px;
+      text-align: center;
+      padding: 15px;
       font-size: 24px;
     }
-    #cameraCanvas {
-      width: 100vw;
-      height: calc(100vh - 60px);
-      object-fit: cover;
-      display: block;
-    }
-    video {
+    #videoPreview {
+      width: 100%;
+      height: auto;
       display: none;
     }
-    #controls {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: rgba(255, 255, 255, 0.95);
-      padding: 10px;
-      border-radius: 8px;
-      z-index: 10;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
-    }
-    .button {
-      display: block;
+    #canvasPreview {
       width: 100%;
-      margin: 5px 0;
-      padding: 10px;
-      font-size: 16px;
-      border: none;
-      border-radius: 5px;
-      background: #4CAF50;
-      color: white;
-      cursor: pointer;
+      height: auto;
+      background: black;
+    }
+    .controls {
+      margin-top: 15px;
     }
     #uploadedResult {
       max-width: 100%;
-      margin-top: 20px;
+      margin-top: 15px;
       border: 2px solid #4CAF50;
     }
   </style>
 </head>
 <body>
+  <div class="header">💻 RAM Slot Detection</div>
+  <div class="container p-3">
+    <p>Select an image or use the camera to detect RAM slots.</p>
 
-<header>
-  💻 RAM Slot Detection
-</header>
-<p>Upload an image or use the camera to detect RAM slots.</p>
+    <div class="controls">
+      <button id="startBtn" class="btn btn-success mb-2">Start Camera</button>
+      <select id="cameraSelect" class="form-select mb-2">
+        <option value="environment">Back Camera</option>
+        <option value="user">Front Camera</option>
+      </select>
+      <input type="file" id="imageUpload" accept="image/*" class="form-control mb-2" />
+    </div>
 
-<input type="file" id="imageUpload" accept="image/*" class="button">
+    <div class="row">
+      <div class="col-md-6">
+        <video id="videoPreview" autoplay playsinline></video>
+        <canvas id="canvasPreview"></canvas>
+      </div>
+      <div class="col-md-6">
+        <img id="uploadedResult" alt="Result will appear here" />
+      </div>
+    </div>
+  </div>
 
-<div id="controls">
-  <select id="cameraSelect" class="button">
-    <option value="environment">Back Camera</option>
-    <option value="user">Front Camera</option>
-  </select>
-  <button id="startBtn" class="button">Start Camera</button>
-</div>
+  <script>
+    const API_URL = "https://onnx-api-backend-5.onrender.com/predict/";
+    const video = document.getElementById('videoPreview');
+    const canvas = document.getElementById('canvasPreview');
+    const ctx = canvas.getContext('2d');
+    let stream = null;
 
-<video id="video" autoplay playsinline></video>
-<canvas id="cameraCanvas"></canvas>
-<img id="uploadedResult" alt="Upload result will appear here" />
-
-<script>
-const API_URL = "https://onnx-api-backend-6.onrender.com/predict/";
-const video = document.getElementById('video');
-const canvas = document.getElementById('cameraCanvas');
-const ctx = canvas.getContext('2d');
-let stream = null;
-
-async function startCamera(facingMode) {
-  if (stream) stream.getTracks().forEach(track => track.stop());
-  stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode, width: 320, height: 240 }
-  });
-  video.srcObject = stream;
-  video.style.display = 'none';
-  document.documentElement.requestFullscreen(); // go fullscreen
-  requestAnimationFrame(loop);
-}
-
-async function loop() {
-  if (video.readyState === 4) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // send current frame every 300ms
-    const frame = canvas.toDataURL("image/jpeg");
-    const blob = await (await fetch(frame)).blob();
-    const formData = new FormData();
-    formData.append("file", blob, "frame.jpg");
-
-    try {
-      const res = await fetch(API_URL, { method: "POST", body: formData });
-      const arrayBuffer = await res.arrayBuffer();
-      const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
-      const imgURL = URL.createObjectURL(imgBlob);
-      const tempImg = new Image();
-      tempImg.src = imgURL;
-      tempImg.onload = () => {
-        ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
-        URL.revokeObjectURL(imgURL);
-      };
-    } catch (err) {
-      console.warn("API error", err);
+    async function startCamera() {
+      const facingMode = document.getElementById("cameraSelect").value;
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode, width: 640, height: 480 }
+      });
+      video.srcObject = stream;
+      video.style.display = 'block';
+      document.documentElement.requestFullscreen();
+      requestAnimationFrame(processCameraFrame);
     }
-  }
-  setTimeout(() => requestAnimationFrame(loop), 300);
-}
 
-document.getElementById("startBtn").addEventListener("click", () => {
-  const mode = document.getElementById("cameraSelect").value;
-  startCamera(mode);
-});
+    async function processCameraFrame() {
+      if (video.readyState === 4) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-document.getElementById('imageUpload').addEventListener('change', async function () {
-  const file = this.files[0];
-  if (!file) return;
+        const frame = canvas.toDataURL("image/jpeg");
+        const blob = await (await fetch(frame)).blob();
+        const formData = new FormData();
+        formData.append("file", blob, "frame.jpg");
 
-  const formData = new FormData();
-  formData.append("file", file);
+        try {
+          const res = await fetch(API_URL, { method: "POST", body: formData });
+          const arrayBuffer = await res.arrayBuffer();
+          const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
+          const imgURL = URL.createObjectURL(imgBlob);
+          const tempImg = new Image();
+          tempImg.src = imgURL;
+          tempImg.onload = () => {
+            ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(imgURL);
+          };
+        } catch (err) {
+          console.warn("API error", err);
+        }
+      }
+      setTimeout(() => requestAnimationFrame(processCameraFrame), 300);
+    }
 
-  try {
-    const res = await fetch(API_URL, { method: "POST", body: formData });
-    const arrayBuffer = await res.arrayBuffer();
-    const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
-    const imgURL = URL.createObjectURL(imgBlob);
-    document.getElementById("uploadedResult").src = imgURL;
-  } catch (err) {
-    console.warn("Upload API error", err);
-  }
-});
-</script>
+    document.getElementById("startBtn").addEventListener("click", () => {
+      startCamera();
+    });
+
+    document.getElementById("imageUpload").addEventListener("change", async function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const res = await fetch(API_URL, { method: "POST", body: formData });
+        const arrayBuffer = await res.arrayBuffer();
+        const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
+        const imgURL = URL.createObjectURL(imgBlob);
+        document.getElementById("uploadedResult").src = imgURL;
+      } catch (err) {
+        console.warn("Upload API error", err);
+      }
+    });
+  </script>
 </body>
 </html>
