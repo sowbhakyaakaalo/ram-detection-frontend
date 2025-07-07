@@ -10,49 +10,69 @@
   <style>
     html, body {
       margin: 0;
-      padding: 0;
       background: #f8f9fa;
-      height: 100%;
-      overflow: hidden;
     }
-    header {
+    .header {
       background-color: #4CAF50;
       color: white;
       text-align: center;
       padding: 15px;
       font-size: 24px;
     }
-    #canvas {
-      width: 100vw;
+    #videoPreview {
+      width: 100%;
+      height: auto;
+      display: none;
+    }
+    #canvasPreview {
+      width: 100%;
       height: auto;
       background: black;
-      display: block;
     }
     .controls {
-      background: #e9e9e9;
-      padding: 10px;
-      text-align: center;
+      margin-top: 15px;
+    }
+    #uploadedResult {
+      width: 100%;
+      max-width: 600px;   /* keep it responsive */
+      max-height: 500px;  /* avoid oversize */
+      margin-top: 15px;
+      border: 2px solid #4CAF50;
     }
   </style>
 </head>
 <body>
-  <header>💻 RAM Slot Detection</header>
-  <div class="controls">
-    <button id="startBtn" class="btn btn-success mb-2">Start Camera</button>
-    <select id="cameraSelect" class="form-select mb-2 w-50 d-inline-block">
-      <option value="environment">Back Camera</option>
-      <option value="user">Front Camera</option>
-    </select>
-    <input type="file" id="imageUpload" accept="image/*" class="form-control mb-2 w-50 d-inline-block" />
+  <div class="header">💻 RAM Slot Detection</div>
+  <div class="container p-3">
+    <p>Select an image or use the camera to detect RAM slots.</p>
+
+    <div class="controls">
+      <button id="startBtn" class="btn btn-success mb-2">Start Camera</button>
+      <select id="cameraSelect" class="form-select mb-2">
+        <option value="environment">Back Camera</option>
+        <option value="user">Front Camera</option>
+      </select>
+      <input type="file" id="imageUpload" accept="image/*" class="form-control mb-2" />
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <video id="videoPreview" autoplay playsinline></video>
+        <canvas id="canvasPreview"></canvas>
+      </div>
+      <div class="col-md-6">
+        <img id="uploadedResult" alt="Result will appear here" />
+      </div>
+    </div>
   </div>
-  <canvas id="canvas"></canvas>
 
   <script>
     const API_URL = "https://onnx-api-backend-5.onrender.com/predict/";
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
+    const video = document.getElementById('videoPreview');
+    const canvas = document.getElementById('canvasPreview');
+    const ctx = canvas.getContext('2d');
     let stream = null;
-    let lastDetections = null;
+    let detectionLocked = false;
 
     async function startCamera() {
       const facingMode = document.getElementById("cameraSelect").value;
@@ -60,46 +80,41 @@
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode, width: 640, height: 480 }
       });
-      const video = document.createElement("video");
       video.srcObject = stream;
-      await video.play();
+      video.style.display = 'block';
+      detectionLocked = false;  // reset lock on new camera start
+      requestAnimationFrame(processCameraFrame);
+    }
 
-      document.documentElement.requestFullscreen();
+    async function processCameraFrame() {
+      if (video.readyState === 4 && !detectionLocked) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      requestAnimationFrame(async function loop() {
-        if (video.readyState === 4) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const frame = canvas.toDataURL("image/jpeg");
+        const blob = await (await fetch(frame)).blob();
+        const formData = new FormData();
+        formData.append("file", blob, "frame.jpg");
 
-          const frame = canvas.toDataURL("image/jpeg");
-          const blob = await (await fetch(frame)).blob();
-          const formData = new FormData();
-          formData.append("file", blob, "frame.jpg");
-
-          try {
-            const res = await fetch(API_URL, { method: "POST", body: formData });
-            const arrayBuffer = await res.arrayBuffer();
-            const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
-            const imgURL = URL.createObjectURL(imgBlob);
-
-            const processed = new Image();
-            processed.src = imgURL;
-            processed.onload = () => {
-              ctx.drawImage(processed, 0, 0, canvas.width, canvas.height);
-              URL.revokeObjectURL(imgURL);
-              lastDetections = processed; // store last detection
-            };
-          } catch (err) {
-            console.warn("API error", err);
-            // show last detection if current fails
-            if (lastDetections) {
-              ctx.drawImage(lastDetections, 0, 0, canvas.width, canvas.height);
-            }
-          }
+        try {
+          const res = await fetch(API_URL, { method: "POST", body: formData });
+          const arrayBuffer = await res.arrayBuffer();
+          const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
+          const imgURL = URL.createObjectURL(imgBlob);
+          const tempImg = new Image();
+          tempImg.src = imgURL;
+          tempImg.onload = () => {
+            ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(imgURL);
+          };
+          // lock detection so it does not change after first result
+          detectionLocked = true;
+        } catch (err) {
+          console.warn("API error", err);
         }
-        setTimeout(() => requestAnimationFrame(loop), 500);
-      });
+      }
+      setTimeout(() => requestAnimationFrame(processCameraFrame), 300);
     }
 
     document.getElementById("startBtn").addEventListener("click", () => {
@@ -118,17 +133,7 @@
         const arrayBuffer = await res.arrayBuffer();
         const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
         const imgURL = URL.createObjectURL(imgBlob);
-
-        const img = new Image();
-        img.src = imgURL;
-        img.onload = () => {
-          // keep aspect ratio
-          const ratio = img.width / img.height;
-          canvas.width = window.innerWidth;
-          canvas.height = window.innerWidth / ratio;
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          URL.revokeObjectURL(imgURL);
-        };
+        document.getElementById("uploadedResult").src = imgURL;
       } catch (err) {
         console.warn("Upload API error", err);
       }
