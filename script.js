@@ -1,6 +1,6 @@
 // script.js
 
-const API_URL = "https://onnx-api-backend-6.onrender.com/predict/";
+const API_URL = "https://onnx-api-backend-7.onrender.com/predict/";
 const video = document.getElementById("videoPreview");
 const canvas = document.getElementById("canvasPreview");
 const ctx = canvas.getContext("2d");
