@@ -1,78 +1,79 @@
+// script.js
 
+const API_URL = "https://onnx-api-backend-6.onrender.com/predict/";
+const video = document.getElementById("videoPreview");
+const canvas = document.getElementById("canvasPreview");
+const ctx = canvas.getContext("2d");
+let stream = null;
+let detectionLocked = false;
+
+// Handle tab switching
 function switchTab(tabId) {
-  document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-  document.getElementById(tabId).classList.add('active');
-  document.querySelector(`[onclick*="${tabId}"]`).classList.add('active');
+  document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach(content => content.classList.remove("active"));
+
+  document.getElementById(tabId).classList.add("active");
+  document.querySelector(`.tab[onclick*='${tabId}']`).classList.add("active");
 }
 
-document.getElementById('imageInput').addEventListener('change', async (event) => {
-  const file = event.target.files[0];
+// Upload handler
+const imageUpload = document.getElementById("imageUpload");
+imageUpload.addEventListener("change", async function () {
+  const file = this.files[0];
   if (!file) return;
 
-  const img = document.getElementById('uploadedImage');
-  const canvas = document.getElementById('uploadCanvas');
-  const ctx = canvas.getContext('2d');
+  const formData = new FormData();
+  formData.append("file", file);
 
-  img.src = URL.createObjectURL(file);
-  img.onload = () => {
-    canvas.width = img.width;
-    canvas.height = img.height;
-    ctx.drawImage(img, 0, 0);
-    // You can call your backend /predict here and draw bounding boxes
-  };
+  try {
+    const res = await fetch(API_URL, { method: "POST", body: formData });
+    const arrayBuffer = await res.arrayBuffer();
+    const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
+    const imgURL = URL.createObjectURL(imgBlob);
+    document.getElementById("uploadedResult").src = imgURL;
+  } catch (err) {
+    console.warn("Upload error", err);
+  }
 });
 
-let stream;
-async function startCamera() {
-  try {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-    }
+// Camera handler
+const startCameraBtn = document.getElementById("startCamera");
+startCameraBtn.addEventListener("click", async () => {
+  const facingMode = document.getElementById("cameraSelect").value;
+  if (stream) stream.getTracks().forEach(track => track.stop());
+  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
+  video.srcObject = stream;
+  video.style.display = "block";
+  detectionLocked = false;
+  requestAnimationFrame(processCameraFrame);
+});
 
-    const constraints = {
-      video: { deviceId: document.getElementById('cameraSelect').value || undefined }
-    };
-    stream = await navigator.mediaDevices.getUserMedia(constraints);
-
-    const video = document.getElementById('video');
-    video.srcObject = stream;
-    video.onloadedmetadata = () => {
-      video.play();
-      drawToCanvas();
-    };
-  } catch (err) {
-    alert("Camera access failed.");
-  }
-}
-
-function drawToCanvas() {
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('videoCanvas');
-  const ctx = canvas.getContext('2d');
-
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-
-  function draw() {
+async function processCameraFrame() {
+  if (video.readyState === 4 && !detectionLocked) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    // Here you can also call backend for detection results per frame
-    requestAnimationFrame(draw);
+
+    const frame = canvas.toDataURL("image/jpeg");
+    const blob = await (await fetch(frame)).blob();
+    const formData = new FormData();
+    formData.append("file", blob, "frame.jpg");
+
+    try {
+      const res = await fetch(API_URL, { method: "POST", body: formData });
+      const arrayBuffer = await res.arrayBuffer();
+      const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
+      const imgURL = URL.createObjectURL(imgBlob);
+      const tempImg = new Image();
+      tempImg.src = imgURL;
+      tempImg.onload = () => {
+        ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(imgURL);
+      };
+      detectionLocked = true;
+    } catch (err) {
+      console.warn("Camera error", err);
+    }
   }
-  draw();
+  setTimeout(() => requestAnimationFrame(processCameraFrame), 300);
 }
-
-async function loadCameras() {
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  const videoDevices = devices.filter(d => d.kind === "videoinput");
-  const select = document.getElementById('cameraSelect');
-  select.innerHTML = '';
-  videoDevices.forEach(device => {
-    const option = document.createElement('option');
-    option.value = device.deviceId;
-    option.text = device.label || `Camera ${select.length + 1}`;
-    select.appendChild(option);
-  });
-}
-
-window.onload = loadCameras;
