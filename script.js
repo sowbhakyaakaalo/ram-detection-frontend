@@ -30,7 +30,20 @@ imageUpload.addEventListener("change", async function () {
     const arrayBuffer = await res.arrayBuffer();
     const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
     const imgURL = URL.createObjectURL(imgBlob);
-    document.getElementById("uploadedResult").src = imgURL;
+
+    const img = new Image();
+    img.src = imgURL;
+    img.onload = () => {
+      const uploadCanvas = document.createElement("canvas");
+      uploadCanvas.width = img.width;
+      uploadCanvas.height = img.height;
+      const uploadCtx = uploadCanvas.getContext("2d");
+      uploadCtx.drawImage(img, 0, 0);
+
+      const resultImage = document.getElementById("uploadedResult");
+      resultImage.src = uploadCanvas.toDataURL("image/jpeg");
+      URL.revokeObjectURL(imgURL);
+    };
   } catch (err) {
     console.warn("Upload error", err);
   }
@@ -67,10 +80,11 @@ async function processCameraFrame() {
       const tempImg = new Image();
       tempImg.src = imgURL;
       tempImg.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(imgURL);
       };
-      detectionLocked = true;
+      detectionLocked = false;
     } catch (err) {
       console.warn("Camera error", err);
     }
