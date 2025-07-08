@@ -23,7 +23,7 @@
       <div class="upload-section">
         <input type="file" accept="image/*" id="imageUpload">
         <div class="preview-box">
-          <img id="uploadedResult" alt="Result will appear here">
+          <canvas id="uploadCanvas"></canvas>
         </div>
       </div>
     </div>
@@ -62,12 +62,22 @@
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch(API_URL, { method: "POST", body: formData });
-      const blob = await res.blob();
-      document.getElementById("uploadedResult").src = URL.createObjectURL(blob);
+      const arrayBuffer = await res.arrayBuffer();
+      const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
+      const imgURL = URL.createObjectURL(imgBlob);
+      const img = new Image();
+      img.src = imgURL;
+      img.onload = () => {
+        const canvas = document.getElementById("uploadCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(imgURL);
+      };
     });
 
     let stream = null;
-    let detectionLocked = false;
 
     document.getElementById("startCamera").addEventListener("click", async () => {
       const facingMode = document.getElementById("cameraSelect").value;
@@ -82,17 +92,15 @@
       const ctx = canvas.getContext("2d");
 
       video.srcObject = stream;
-      detectionLocked = false;
-
       video.onloadedmetadata = () => {
         video.play();
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        requestAnimationFrame(processFrame);
+        processCameraFrames();
       };
 
-      async function processFrame() {
-        if (video.readyState === 4 && !detectionLocked) {
+      async function processCameraFrames() {
+        if (video.readyState === 4) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const frame = canvas.toDataURL("image/jpeg");
           const blob = await (await fetch(frame)).blob();
@@ -110,12 +118,11 @@
               ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
               URL.revokeObjectURL(imgURL);
             };
-            detectionLocked = true;
           } catch (err) {
             console.warn("API error", err);
           }
         }
-        requestAnimationFrame(processFrame);
+        setTimeout(processCameraFrames, 1000);
       }
     });
   </script>
