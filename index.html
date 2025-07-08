@@ -1,194 +1,185 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RAM Slot Detection</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
     body {
-      margin: 0;
-      background: #f8f9fa;
       font-family: Arial, sans-serif;
-    }
-    .header {
-      background-color: #ffffff;
+      background: #f9f9f9;
+      margin: 0;
+      padding: 0;
       text-align: center;
-      padding: 15px;
-      font-size: 26px;
-      font-weight: bold;
-      color: #2e7d32;
     }
-    .tab-container {
-      display: flex;
-      justify-content: center;
-      border-bottom: 2px solid #2e7d32;
-      margin-bottom: 10px;
-    }
-    .tab-button {
-      padding: 10px 20px;
-      border: none;
-      background: none;
-      font-size: 16px;
-      font-weight: 500;
-      color: #2e7d32;
-      cursor: pointer;
+
+    header {
+      background: #2e7d32;
+      color: white;
+      padding: 20px 0;
+      font-size: 24px;
       display: flex;
       align-items: center;
-      gap: 5px;
-    }
-    .tab-button.active {
-      border-bottom: 3px solid #2e7d32;
-    }
-    #uploadedResult, #canvasPreview {
-      width: 100%;
-      max-width: 600px;
-      border: 2px solid #2e7d32;
-      margin-top: 10px;
-    }
-    .preview-container {
-      display: flex;
-      justify-content: center;
-      flex-direction: column;
-      align-items: center;
-    }
-    .example-thumbnails {
-      display: flex;
       justify-content: center;
       gap: 10px;
-      margin-top: 15px;
-      flex-wrap: wrap;
     }
-    .example-thumbnails img {
-      width: 100px;
-      height: auto;
-      border-radius: 6px;
-      border: 1px solid #ccc;
+
+    .tab-container {
+      margin-top: 20px;
+    }
+
+    .tabs {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .tab {
+      background-color: #e0e0e0;
+      padding: 10px 20px;
+      margin: 0 5px;
       cursor: pointer;
+      border-radius: 5px;
+    }
+
+    .tab.active {
+      background-color: #2e7d32;
+      color: white;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 10px;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .camera-section, .upload-section {
+      margin: 20px auto;
+      max-width: 700px;
+    }
+
+    select, button {
+      padding: 8px;
+      font-size: 16px;
+      margin: 10px;
+    }
+
+    #videoCanvasWrapper, #uploadImageWrapper {
+      margin-top: 20px;
+    }
+
+    canvas, img {
+      max-width: 100%;
+      border: 2px solid #2e7d32;
+      border-radius: 10px;
+    }
+
+    .footer-note {
+      font-size: 12px;
+      color: gray;
+      margin-top: 40px;
     }
   </style>
 </head>
 <body>
-  <div class="header">💻 RAM Slot Detection</div>
+  <header>
+    <span>💻</span>
+    <span>RAM Slot Detection</span>
+  </header>
 
   <div class="tab-container">
-    <button class="tab-button active" id="uploadTab"><img src="https://img.icons8.com/color/48/image.png" width="20"> Upload Module</button>
-    <button class="tab-button" id="cameraTab"><img src="https://img.icons8.com/fluency/48/camera.png" width="20"> Camera</button>
-  </div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('upload')">Upload Module</div>
+      <div class="tab" onclick="switchTab('camera')">Camera</div>
+    </div>
 
-  <div class="container p-3">
-    <div id="uploadSection">
-      <input type="file" id="imageUpload" accept="image/*" class="form-control mb-2" />
-      <div class="preview-container">
-        <img id="uploadedResult" alt="Result will appear here" />
+    <div id="upload" class="tab-content active">
+      <div class="upload-section">
+        <input type="file" accept="image/*" onchange="loadImage(event)">
+        <div id="uploadImageWrapper">
+          <img id="uploadedImage" />
+        </div>
       </div>
     </div>
 
-    <div id="cameraSection" style="display:none">
-      <select id="cameraSelect" class="form-select mb-2">
-        <option value="environment">Back Camera</option>
-        <option value="user">Front Camera</option>
-      </select>
-      <button id="startBtn" class="btn btn-success mb-2">Start Camera</button>
-      <div class="preview-container">
-        <video id="videoPreview" autoplay playsinline style="display:none"></video>
-        <canvas id="canvasPreview"></canvas>
+    <div id="camera" class="tab-content">
+      <div class="camera-section">
+        <select id="cameraSelect"></select>
+        <button onclick="startCamera()">Start Camera</button>
+        <div id="videoCanvasWrapper">
+          <video id="video" autoplay playsinline></video>
+          <canvas id="canvas"></canvas>
+        </div>
       </div>
     </div>
-
-    <div class="example-thumbnails">
-      <img src="https://via.placeholder.com/100?text=Example+1" alt="Example 1">
-      <img src="https://via.placeholder.com/100?text=Example+2" alt="Example 2">
-      <img src="https://via.placeholder.com/100?text=Example+3" alt="Example 3">
-      <img src="https://via.placeholder.com/100?text=Example+4" alt="Example 4">
-    </div>
   </div>
+
+  <div class="footer-note">&copy; RAM Detection System</div>
 
   <script>
-    const API_URL = "https://onnx-api-backend-6.onrender.com/predict/";
-    const video = document.getElementById('videoPreview');
-    const canvas = document.getElementById('canvasPreview');
-    const ctx = canvas.getContext('2d');
-    let stream = null;
-    let detectionLocked = false;
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      document.querySelector(`.tab[onclick*='${tabId}']`).classList.add('active');
+    }
 
+    function loadImage(event) {
+      const img = document.getElementById('uploadedImage');
+      img.src = URL.createObjectURL(event.target.files[0]);
+      img.onload = () => URL.revokeObjectURL(img.src);
+    }
+
+    let stream;
     async function startCamera() {
-      const facingMode = document.getElementById("cameraSelect").value;
-      if (stream) stream.getTracks().forEach(track => track.stop());
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: 640, height: 480 }
-      });
-      video.srcObject = stream;
-      video.style.display = 'block';
-      detectionLocked = false;
-      requestAnimationFrame(processCameraFrame);
-    }
-
-    async function processCameraFrame() {
-      if (video.readyState === 4 && !detectionLocked) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const frame = canvas.toDataURL("image/jpeg");
-        const blob = await (await fetch(frame)).blob();
-        const formData = new FormData();
-        formData.append("file", blob, "frame.jpg");
-        try {
-          const res = await fetch(API_URL, { method: "POST", body: formData });
-          const arrayBuffer = await res.arrayBuffer();
-          const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
-          const imgURL = URL.createObjectURL(imgBlob);
-          const tempImg = new Image();
-          tempImg.src = imgURL;
-          tempImg.onload = () => {
-            ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
-            URL.revokeObjectURL(imgURL);
-          };
-          detectionLocked = true;
-        } catch (err) {
-          console.warn("API error", err);
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      const constraints = {
+        video: {
+          deviceId: document.getElementById('cameraSelect').value || undefined
         }
-      }
-      setTimeout(() => requestAnimationFrame(processCameraFrame), 300);
+      };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const video = document.getElementById('video');
+      video.srcObject = stream;
+      video.onloadedmetadata = () => {
+        video.play();
+        drawVideoToCanvas();
+      };
     }
 
-    document.getElementById("startBtn").addEventListener("click", () => startCamera());
+    function drawVideoToCanvas() {
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
 
-    document.getElementById("imageUpload").addEventListener("change", async function () {
-      const file = this.files[0];
-      if (!file) return;
-      const formData = new FormData();
-      formData.append("file", file);
-      try {
-        const res = await fetch(API_URL, { method: "POST", body: formData });
-        const arrayBuffer = await res.arrayBuffer();
-        const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
-        const imgURL = URL.createObjectURL(imgBlob);
-        document.getElementById("uploadedResult").src = imgURL;
-      } catch (err) {
-        console.warn("Upload API error", err);
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      function draw() {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(draw);
       }
-    });
+      draw();
+    }
 
-    // Toggle Tabs
-    const uploadTab = document.getElementById("uploadTab");
-    const cameraTab = document.getElementById("cameraTab");
-    const uploadSection = document.getElementById("uploadSection");
-    const cameraSection = document.getElementById("cameraSection");
+    async function loadCameraOptions() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      const cameraSelect = document.getElementById('cameraSelect');
+      videoDevices.forEach(device => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.text = device.label || `Camera ${cameraSelect.length + 1}`;
+        cameraSelect.appendChild(option);
+      });
+    }
 
-    uploadTab.addEventListener("click", () => {
-      uploadTab.classList.add("active");
-      cameraTab.classList.remove("active");
-      uploadSection.style.display = "block";
-      cameraSection.style.display = "none";
-    });
-
-    cameraTab.addEventListener("click", () => {
-      cameraTab.classList.add("active");
-      uploadTab.classList.remove("active");
-      cameraSection.style.display = "block";
-      uploadSection.style.display = "none";
-    });
+    window.onload = loadCameraOptions;
   </script>
 </body>
 </html>
-
