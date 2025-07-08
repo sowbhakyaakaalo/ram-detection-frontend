@@ -1,43 +1,51 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RAM Slot Detection</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    💻 RAM Slot Detection
+    <span>💻</span>
+    <span>RAM Slot Detection</span>
   </header>
-  <div class="tabs">
-    <button class="tab-button active" onclick="switchTab('uploadTab')">Upload Module</button>
-    <button class="tab-button" onclick="switchTab('cameraTab')">Camera</button>
-  </div>
 
-  <div id="uploadTab" class="tab-content active">
-    <input type="file" id="imageInput" accept="image/*" />
-    <div id="uploadResultWrapper">
-      <img id="uploadedImage" />
-      <canvas id="uploadCanvas"></canvas>
+  <div class="tab-container">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('upload')">Upload Module</div>
+      <div class="tab" onclick="switchTab('camera')">Camera Module</div>
+    </div>
+
+    <div id="upload" class="tab-content active">
+      <div class="upload-section">
+        <input type="file" accept="image/*" id="imageUpload">
+        <div class="preview-box">
+          <img id="uploadedResult" alt="Result will appear here">
+        </div>
+      </div>
+    </div>
+
+    <div id="camera" class="tab-content">
+      <div class="camera-section">
+        <select id="cameraSelect">
+          <option value="environment">Back Camera</option>
+          <option value="user">Front Camera</option>
+        </select>
+        <button id="startCamera">Start Camera</button>
+        <div class="preview-box">
+          <video id="videoPreview" autoplay playsinline></video>
+          <canvas id="canvasPreview"></canvas>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div id="cameraTab" class="tab-content">
-    <select id="cameraSelect"></select>
-    <button onclick="startCamera()">Start Camera</button>
-    <div id="cameraWrapper">
-      <video id="video" autoplay playsinline></video>
-      <canvas id="videoCanvas"></canvas>
-    </div>
-  </div>
-
-  <footer>
-    &copy; RAM Detection System
-  </footer>
+  <footer>&copy; 2025 RAM Detection System</footer>
 
   <script src="script.js"></script>
 </body>
 </html>
-
 
