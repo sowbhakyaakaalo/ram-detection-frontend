@@ -5,51 +5,56 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RAM Slot Detection</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background: #f9f9f9;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f8;
       margin: 0;
       padding: 0;
-      text-align: center;
     }
 
     header {
-      background: #2e7d32;
+      background-color: #1b5e20;
       color: white;
-      padding: 20px 0;
-      font-size: 24px;
+      text-align: center;
+      padding: 1rem 0;
+      font-size: 1.5rem;
+      font-weight: bold;
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       gap: 10px;
-    }
-
-    .tab-container {
-      margin-top: 20px;
     }
 
     .tabs {
       display: flex;
       justify-content: center;
-      margin-bottom: 10px;
+      background-color: #e0e0e0;
     }
 
     .tab {
-      background-color: #e0e0e0;
-      padding: 10px 20px;
-      margin: 0 5px;
+      flex: 1;
+      text-align: center;
+      padding: 1rem;
       cursor: pointer;
-      border-radius: 5px;
+      background: #c8e6c9;
+      transition: background 0.3s;
     }
 
     .tab.active {
-      background-color: #2e7d32;
+      background: #2e7d32;
       color: white;
+      font-weight: bold;
     }
 
     .tab-content {
       display: none;
-      padding: 10px;
+      padding: 1rem;
+      max-width: 800px;
+      margin: auto;
     }
 
     .tab-content.active {
@@ -57,72 +62,79 @@
     }
 
     .camera-section, .upload-section {
-      margin: 20px auto;
-      max-width: 700px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
     }
 
-    select, button {
-      padding: 8px;
-      font-size: 16px;
-      margin: 10px;
-    }
-
-    #videoCanvasWrapper, #uploadImageWrapper {
-      margin-top: 20px;
-    }
-
-    canvas, img {
-      max-width: 100%;
+    video, canvas, img {
+      width: 100%;
+      max-width: 640px;
       border: 2px solid #2e7d32;
       border-radius: 10px;
+      background-color: black;
+    }
+
+    select, button, input[type="file"] {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      background-color: #2e7d32;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #1b5e20;
     }
 
     .footer-note {
-      font-size: 12px;
+      text-align: center;
+      font-size: 0.85rem;
       color: gray;
-      margin-top: 40px;
+      padding: 1rem;
+      margin-top: 2rem;
     }
   </style>
 </head>
 <body>
   <header>
-    <span>💻</span>
-    <span>RAM Slot Detection</span>
+    <span>💻</span> RAM Slot Detection
   </header>
 
-  <div class="tab-container">
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab('upload')">Upload Module</div>
-      <div class="tab" onclick="switchTab('camera')">Camera</div>
-    </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('upload')">Upload Module</div>
+    <div class="tab" onclick="switchTab('camera')">Camera</div>
+  </div>
 
-    <div id="upload" class="tab-content active">
-      <div class="upload-section">
-        <input type="file" accept="image/*" onchange="loadImage(event)">
-        <div id="uploadImageWrapper">
-          <img id="uploadedImage" />
-        </div>
-      </div>
-    </div>
-
-    <div id="camera" class="tab-content">
-      <div class="camera-section">
-        <select id="cameraSelect"></select>
-        <button onclick="startCamera()">Start Camera</button>
-        <div id="videoCanvasWrapper">
-          <video id="video" autoplay playsinline></video>
-          <canvas id="canvas"></canvas>
-        </div>
-      </div>
+  <div id="upload" class="tab-content active">
+    <div class="upload-section">
+      <input type="file" accept="image/*" onchange="loadImage(event)">
+      <img id="uploadedImage" alt="Uploaded Image Preview">
     </div>
   </div>
 
-  <div class="footer-note">&copy; RAM Detection System</div>
+  <div id="camera" class="tab-content">
+    <div class="camera-section">
+      <select id="cameraSelect"></select>
+      <button onclick="startCamera()">Start Camera</button>
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="footer-note">&copy; 2025 RAM Detection System</div>
 
   <script>
     function switchTab(tabId) {
       document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
       document.querySelector(`.tab[onclick*='${tabId}']`).classList.add('active');
     }
@@ -135,21 +147,21 @@
 
     let stream;
     async function startCamera() {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+      if (stream) stream.getTracks().forEach(track => track.stop());
       const constraints = {
-        video: {
-          deviceId: document.getElementById('cameraSelect').value || undefined
-        }
+        video: { deviceId: { exact: document.getElementById('cameraSelect').value } }
       };
-      stream = await navigator.mediaDevices.getUserMedia(constraints);
-      const video = document.getElementById('video');
-      video.srcObject = stream;
-      video.onloadedmetadata = () => {
-        video.play();
-        drawVideoToCanvas();
-      };
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+        video.onloadedmetadata = () => {
+          video.play();
+          drawVideoToCanvas();
+        };
+      } catch (error) {
+        alert("Camera access failed.");
+      }
     }
 
     function drawVideoToCanvas() {
@@ -171,10 +183,11 @@
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
       const cameraSelect = document.getElementById('cameraSelect');
-      videoDevices.forEach(device => {
+      cameraSelect.innerHTML = "";
+      videoDevices.forEach((device, index) => {
         const option = document.createElement('option');
         option.value = device.deviceId;
-        option.text = device.label || `Camera ${cameraSelect.length + 1}`;
+        option.text = device.label || `Camera ${index + 1}`;
         cameraSelect.appendChild(option);
       });
     }
