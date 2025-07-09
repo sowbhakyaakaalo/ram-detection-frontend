@@ -1,11 +1,8 @@
-// script.js
-
 const API_URL = "https://onnx-api-backend-7.onrender.com/predict/";
 const video = document.getElementById("videoPreview");
 const canvas = document.getElementById("canvasPreview");
 const ctx = canvas.getContext("2d");
 let stream = null;
-let detectionLocked = false;
 
 // Handle tab switching
 function switchTab(tabId) {
@@ -48,6 +45,10 @@ imageUpload.addEventListener("change", async function () {
 
 // Camera handler
 const startCameraBtn = document.getElementById("startCamera");
+
+let lastDetectionImage = null;
+let lastDetectionTime = 0;
+
 startCameraBtn.addEventListener("click", async () => {
   const facingMode = document.getElementById("cameraSelect").value;
   if (stream) stream.getTracks().forEach(track => track.stop());
@@ -63,12 +64,11 @@ startCameraBtn.addEventListener("click", async () => {
 
   video.srcObject = stream;
   video.style.display = "block";
-  detectionLocked = false;
   requestAnimationFrame(processCameraFrame);
 });
 
 async function processCameraFrame() {
-  if (video.readyState === 4 && !detectionLocked) {
+  if (video.readyState === 4) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -83,17 +83,25 @@ async function processCameraFrame() {
       const arrayBuffer = await res.arrayBuffer();
       const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
       const imgURL = URL.createObjectURL(imgBlob);
+
       const tempImg = new Image();
       tempImg.src = imgURL;
       tempImg.onload = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
+        lastDetectionImage = tempImg;
+        lastDetectionTime = Date.now();
         URL.revokeObjectURL(imgURL);
       };
-      detectionLocked = false;
     } catch (err) {
-      console.warn("Camera error", err);
+      console.warn("Detection failed. Reusing last result...");
+      const now = Date.now();
+      if (lastDetectionImage && now - lastDetectionTime < 4000) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(lastDetectionImage, 0, 0, canvas.width, canvas.height);
+      }
     }
   }
-  setTimeout(() => requestAnimationFrame(processCameraFrame), 100);
+
+  setTimeout(() => requestAnimationFrame(processCameraFrame), 300); // smoother
 }
