@@ -1,20 +1,10 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>RAM Slot Detection</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    canvas#uploadCanvas {
-      width: 100%;
-      max-width: 640px;
-      height: auto;
-      border: 2px solid #1a73e8;
-      border-radius: 8px;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
@@ -32,7 +22,7 @@
       <div class="upload-section">
         <input type="file" accept="image/*" id="imageUpload">
         <div class="preview-box">
-          <canvas id="uploadCanvas"></canvas>
+          <canvas id="uploadCanvas" width="640" height="480"></canvas>
         </div>
       </div>
     </div>
@@ -46,7 +36,7 @@
         <button id="startCamera">Start Camera</button>
         <div class="preview-box">
           <video id="videoPreview" autoplay playsinline muted></video>
-          <canvas id="canvasPreview"></canvas>
+          <canvas id="canvasPreview" width="640" height="480"></canvas>
         </div>
       </div>
     </div>
@@ -54,7 +44,6 @@
 
   <footer>&copy; 2025 RAM Detection System</footer>
 
-  <!-- ✅ Use external script -->
   <script src="script.js"></script>
 </body>
 </html>
