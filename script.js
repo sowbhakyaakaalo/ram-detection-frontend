@@ -1,3 +1,5 @@
+// script.js
+
 const API_URL = "https://onnx-api-backend-7.onrender.com/predict/";
 const video = document.getElementById("videoPreview");
 const canvas = document.getElementById("canvasPreview");
@@ -31,14 +33,12 @@ imageUpload.addEventListener("change", async function () {
     const img = new Image();
     img.src = imgURL;
     img.onload = () => {
-      const uploadCanvas = document.createElement("canvas");
+      const uploadCanvas = document.getElementById("uploadCanvas");
       uploadCanvas.width = img.width;
       uploadCanvas.height = img.height;
       const uploadCtx = uploadCanvas.getContext("2d");
-      uploadCtx.drawImage(img, 0, 0);
-
-      const resultImage = document.getElementById("uploadedResult");
-      resultImage.src = uploadCanvas.toDataURL("image/jpeg");
+      uploadCtx.clearRect(0, 0, uploadCanvas.width, uploadCanvas.height);
+      uploadCtx.drawImage(img, 0, 0, img.width, img.height);
       URL.revokeObjectURL(imgURL);
     };
   } catch (err) {
@@ -46,7 +46,7 @@ imageUpload.addEventListener("change", async function () {
   }
 });
 
-// ✅ Updated Camera handler with HD settings
+// Camera handler
 const startCameraBtn = document.getElementById("startCamera");
 startCameraBtn.addEventListener("click", async () => {
   const facingMode = document.getElementById("cameraSelect").value;
@@ -55,9 +55,9 @@ startCameraBtn.addEventListener("click", async () => {
   stream = await navigator.mediaDevices.getUserMedia({
     video: {
       facingMode,
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-      frameRate: { ideal: 30 }
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+      frameRate: { ideal: 60 }
     }
   });
 
@@ -95,6 +95,5 @@ async function processCameraFrame() {
       console.warn("Camera error", err);
     }
   }
-  setTimeout(() => requestAnimationFrame(processCameraFrame), 300);
+  setTimeout(() => requestAnimationFrame(processCameraFrame), 100);
 }
-
