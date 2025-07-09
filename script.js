@@ -1,5 +1,3 @@
-// script.js
-
 const API_URL = "https://onnx-api-backend-7.onrender.com/predict/";
 const video = document.getElementById("videoPreview");
 const canvas = document.getElementById("canvasPreview");
@@ -11,7 +9,6 @@ let detectionLocked = false;
 function switchTab(tabId) {
   document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
   document.querySelectorAll(".tab-content").forEach(content => content.classList.remove("active"));
-
   document.getElementById(tabId).classList.add("active");
   document.querySelector(`.tab[onclick*='${tabId}']`).classList.add("active");
 }
@@ -49,12 +46,21 @@ imageUpload.addEventListener("change", async function () {
   }
 });
 
-// Camera handler
+// ✅ Updated Camera handler with HD settings
 const startCameraBtn = document.getElementById("startCamera");
 startCameraBtn.addEventListener("click", async () => {
   const facingMode = document.getElementById("cameraSelect").value;
   if (stream) stream.getTracks().forEach(track => track.stop());
-  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
+
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode,
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      frameRate: { ideal: 30 }
+    }
+  });
+
   video.srcObject = stream;
   video.style.display = "block";
   detectionLocked = false;
@@ -91,3 +97,4 @@ async function processCameraFrame() {
   }
   setTimeout(() => requestAnimationFrame(processCameraFrame), 300);
 }
+
