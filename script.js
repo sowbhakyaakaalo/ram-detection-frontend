@@ -101,7 +101,7 @@ async function processCameraFrame() {
   }
 
   // ✅ Run every 300ms to avoid lag/stuttering
-  setTimeout(() => requestAnimationFrame(processCameraFrame), 50);
+  setTimeout(() => requestAnimationFrame(processCameraFrame), 150);
 }
 
 
