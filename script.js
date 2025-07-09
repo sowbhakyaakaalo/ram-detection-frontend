@@ -13,7 +13,7 @@ function switchTab(tabId) {
   document.querySelector(`.tab[onclick*='${tabId}']`).classList.add("active");
 }
 
-// Upload handler
+// ✅ Upload handler
 document.getElementById("imageUpload").addEventListener("change", async function () {
   const file = this.files[0];
   if (!file) return;
@@ -32,8 +32,13 @@ document.getElementById("imageUpload").addEventListener("change", async function
     img.onload = () => {
       const uploadCanvas = document.getElementById("uploadCanvas");
       const uploadCtx = uploadCanvas.getContext("2d");
+
+      // ✅ Set canvas size to image size
+      uploadCanvas.width = img.width;
+      uploadCanvas.height = img.height;
+
       uploadCtx.clearRect(0, 0, uploadCanvas.width, uploadCanvas.height);
-      uploadCtx.drawImage(img, 0, 0, uploadCanvas.width, uploadCanvas.height);
+      uploadCtx.drawImage(img, 0, 0);
       URL.revokeObjectURL(imgURL);
     };
   } catch (err) {
@@ -41,7 +46,7 @@ document.getElementById("imageUpload").addEventListener("change", async function
   }
 });
 
-// Camera start
+// ✅ Camera start
 document.getElementById("startCamera").addEventListener("click", async () => {
   const facingMode = document.getElementById("cameraSelect").value;
   if (stream) stream.getTracks().forEach(track => track.stop());
@@ -85,14 +90,18 @@ async function processCameraFrame() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(imgURL);
-        detectionDelay = 0;
+        detectionDelay = 0; // Reset on success
       };
     } catch (err) {
-      console.warn("Detection failed. Attempting to continue.");
+      console.warn("Detection failed. Retrying...");
       detectionDelay++;
-      if (detectionDelay > 5) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Optional: remove this if you want to keep last detection longer
+      // if (detectionDelay > 10) ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
   }
 
+  // ✅ Run every 300ms to avoid lag/stuttering
   setTimeout(() => requestAnimationFrame(processCameraFrame), 300);
+}
+
 
