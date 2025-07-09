@@ -1,20 +1,24 @@
+// script.js
+
 const API_URL = "https://onnx-api-backend-7.onrender.com/predict/";
 const video = document.getElementById("videoPreview");
 const canvas = document.getElementById("canvasPreview");
 const ctx = canvas.getContext("2d");
 let stream = null;
-let detectionDelay = 0;
+let lastResultImage = null;
+let frameCount = 0;
 
-// Tab switcher
+// Handle tab switching
 function switchTab(tabId) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-  document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach(content => content.classList.remove("active"));
   document.getElementById(tabId).classList.add("active");
   document.querySelector(`.tab[onclick*='${tabId}']`).classList.add("active");
 }
 
-// ✅ Upload handler
-document.getElementById("imageUpload").addEventListener("change", async function () {
+// Upload handler
+const imageUpload = document.getElementById("imageUpload");
+imageUpload.addEventListener("change", async function () {
   const file = this.files[0];
   if (!file) return;
 
@@ -26,28 +30,26 @@ document.getElementById("imageUpload").addEventListener("change", async function
     const arrayBuffer = await res.arrayBuffer();
     const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
     const imgURL = URL.createObjectURL(imgBlob);
-    
+
     const img = new Image();
     img.src = imgURL;
     img.onload = () => {
       const uploadCanvas = document.getElementById("uploadCanvas");
       const uploadCtx = uploadCanvas.getContext("2d");
-
-      // ✅ Set canvas size to image size
       uploadCanvas.width = img.width;
       uploadCanvas.height = img.height;
-
       uploadCtx.clearRect(0, 0, uploadCanvas.width, uploadCanvas.height);
-      uploadCtx.drawImage(img, 0, 0);
+      uploadCtx.drawImage(img, 0, 0, img.width, img.height);
       URL.revokeObjectURL(imgURL);
     };
   } catch (err) {
-    console.error("Upload error", err);
+    console.warn("Upload error", err);
   }
 });
 
-// ✅ Camera start
-document.getElementById("startCamera").addEventListener("click", async () => {
+// Camera handler
+const startCameraBtn = document.getElementById("startCamera");
+startCameraBtn.addEventListener("click", async () => {
   const facingMode = document.getElementById("cameraSelect").value;
   if (stream) stream.getTracks().forEach(track => track.stop());
 
@@ -74,34 +76,36 @@ async function processCameraFrame() {
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const frame = canvas.toDataURL("image/jpeg");
-    const blob = await (await fetch(frame)).blob();
-    const formData = new FormData();
-    formData.append("file", blob, "frame.jpg");
+    frameCount++;
+    if (frameCount % 5 === 0) {
+      const frame = canvas.toDataURL("image/jpeg");
+      const blob = await (await fetch(frame)).blob();
+      const formData = new FormData();
+      formData.append("file", blob, "frame.jpg");
 
-    try {
-      const res = await fetch(API_URL, { method: "POST", body: formData });
-      const arrayBuffer = await res.arrayBuffer();
-      const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
-      const imgURL = URL.createObjectURL(imgBlob);
-      const tempImg = new Image();
-      tempImg.src = imgURL;
-      tempImg.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
-        URL.revokeObjectURL(imgURL);
-        detectionDelay = 0; // Reset on success
-      };
-    } catch (err) {
-      console.warn("Detection failed. Retrying...");
-      detectionDelay++;
-      // Optional: remove this if you want to keep last detection longer
-      // if (detectionDelay > 10) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      try {
+        const res = await fetch(API_URL, { method: "POST", body: formData });
+        const arrayBuffer = await res.arrayBuffer();
+        const imgBlob = new Blob([arrayBuffer], { type: "image/jpeg" });
+        const imgURL = URL.createObjectURL(imgBlob);
+
+        const tempImg = new Image();
+        tempImg.src = imgURL;
+        tempImg.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
+          lastResultImage = tempImg;
+          URL.revokeObjectURL(imgURL);
+        };
+      } catch (err) {
+        console.warn("Detection error", err);
+      }
+    } else if (lastResultImage) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(lastResultImage, 0, 0, canvas.width, canvas.height);
     }
   }
 
-  // ✅ Run every 300ms to avoid lag/stuttering
-  setTimeout(() => requestAnimationFrame(processCameraFrame), 150);
+  setTimeout(() => requestAnimationFrame(processCameraFrame), 100);
 }
-
 
