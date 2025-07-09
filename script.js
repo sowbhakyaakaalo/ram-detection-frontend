@@ -94,5 +94,5 @@ async function processCameraFrame() {
     }
   }
 
-  setTimeout(() => requestAnimationFrame(processCameraFrame), 150);
+  setTimeout(() => requestAnimationFrame(processCameraFrame), 50);
 
